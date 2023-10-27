@@ -1,6 +1,6 @@
 version: "3.9"
 services:
-  chatgpt-api-by-browser-script:
+  crawl-chat-gpt:
     build: .
     ports:
       - "8765:8765"

@@ -1,7 +1,7 @@
-const WebSocket = require('ws');
-const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
+const WebSocket = require("ws");
+const express = require("express");
+const bodyParser = require("body-parser");
+const cors = require("cors");
 
 const WS_PORT = 8765;
 const HTTP_PORT = 8766;
@@ -14,44 +14,48 @@ class WebSocketServer {
   }
 
   initialize() {
-    this.server.on('connection', (socket) => {
+    this.server.on("connection", (socket) => {
       this.connectedSocket = socket;
-      console.log('Browser connected, can process requests now.');
+      console.log("Browser connected, can process requests now.");
 
-      socket.on('close', () => {
-        console.log('The browser connection has been disconnected, the request cannot be processed.');
+      socket.on("close", () => {
+        console.log(
+          "The browser connection has been disconnected, the request cannot be processed.",
+        );
         this.connectedSocket = null;
       });
     });
 
-    console.log('WebSocket server is running');
+    console.log("WebSocket server is running");
   }
 
   async sendRequest(request, callback) {
     if (!this.connectedSocket) {
-      callback('stop', 'api error');
-      console.log('The browser connection has not been established, the request cannot be processed.');
+      callback("stop", "api error");
+      console.log(
+        "The browser connection has not been established, the request cannot be processed.",
+      );
       return;
     }
 
     this.connectedSocket.send(JSON.stringify(request));
 
-    let text = ''
+    let text = "";
     const handleMessage = (message) => {
       const data = message;
-      const jsonString = data.toString('utf8');
+      const jsonString = data.toString("utf8");
       const jsonObject = JSON.parse(jsonString);
 
-      if (jsonObject.type === 'stop') {
-        this.connectedSocket.off('message', handleMessage);
-        callback('stop', text);
-      } else if (jsonObject.type === 'answer')  {
-        console.log('answer:', jsonObject.text)
-        text = jsonObject.text
-        callback('answer', text);
+      if (jsonObject.type === "stop") {
+        this.connectedSocket.off("message", handleMessage);
+        callback("stop", text);
+      } else if (jsonObject.type === "answer") {
+        console.log("answer:", jsonObject.text);
+        text = jsonObject.text;
+        callback("answer", text);
       }
     };
-    this.connectedSocket.on('message', handleMessage);
+    this.connectedSocket.on("message", handleMessage);
   }
 }
 
@@ -63,28 +67,21 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
 
-app.post('/v1/chat/completions', async function (req, res) {
+app.post("/v1/chat/completions", async function (req, res) {
+  const { messages, model, stream, newChat = true } = req.body;
 
-  const { messages, model, stream, newChat = true  } = req.body;
-
-  if(stream){
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
+  if (stream) {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
     res.flushHeaders();
   }
 
-  console.log('request body', req.body)
+  console.log("request body", req.body);
 
-  const requestPayload = `
-    Now you must play the role of system and answer the user.
+  const requestPayload = messages;
 
-    ${JSON.stringify(messages)}
-
-    Your answer:
-  `;
-
-  let lastResponse = '';
+  let lastResponse = "";
   webSocketServer.sendRequest(
     {
       text: requestPayload,
@@ -93,45 +90,50 @@ app.post('/v1/chat/completions', async function (req, res) {
     },
     (type, response) => {
       try {
-        response = response.trim()
-        let deltaContent = '';
+        response = response.trim();
+        let deltaContent = "";
         if (lastResponse) {
           const index = response.indexOf(lastResponse);
-          deltaContent = index >= 0 ? response.slice(index + lastResponse.length) : response;
+          deltaContent =
+            index >= 0 ? response.slice(index + lastResponse.length) : response;
         } else {
           deltaContent = response;
         }
         const result = {
-          choices: [{
+          choices: [
+            {
               message: { content: response },
-              delta: { content: deltaContent }
-          }]
-        }
-        lastResponse = response
-        if(type === 'stop'){
-          if(stream) {
+              delta: { content: deltaContent },
+            },
+          ],
+        };
+        lastResponse = response;
+        if (type === "stop") {
+          if (stream) {
             res.write(`id: ${Date.now()}\n`);
             res.write(`event: event\n`);
-            res.write('data: [DONE]\n\n');
+            res.write("data: [DONE]\n\n");
             res.end();
           } else {
             res.send(result);
           }
         } else {
-          if(stream) {
+          if (stream) {
             res.write(`id: ${Date.now()}\n`);
             res.write(`event: event\n`);
             res.write(`data: ${JSON.stringify(result)}\n\n`);
           }
         }
-        console.log('result', result)
+        console.log("result", result);
       } catch (error) {
-        console.log('error', error)
+        console.log("error", error);
       }
-    }
+    },
   );
 });
 
 app.listen(HTTP_PORT, function () {
-  console.log(`Application example, access address is http://localhost:${HTTP_PORT}/v1/chat/completions`);
+  console.log(
+    `Application example, access address is http://localhost:${HTTP_PORT}/v1/chat/completions`,
+  );
 });

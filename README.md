@@ -1,84 +1,31 @@
-# Chatgpt API By Browser Script
+# Hướng dẫn sử dụng
 
-[中文文档](./README.zh.md)
+Phần này hiểu đơn giản là sẽ chạy 1 socket server để nhận dữ liệu từ script được nhúng thêm vào web của chat gpt. Script vẫn đang phát triển, chat gpt có thể thay đổi các chính sách nên có gì cứ liên hệ với mình.
 
-This project runs on users' browsers through the Tampermonkey script and converts the web version of ChatGPT operations into an API interface. You can use this API to do some interesting things, such as playing [Auto-GPT](https://github.com/Significant-Gravitas/Auto-GPT).
+## Các bước test chat gpt
 
-## Features
-- API no cost.
-- If you have a chatgpt plus account, you can use gpt-4 api.
-- Having unlimited context.
-- Not easy to be banned and easier to handle errors.
+- Cài đặt [Tempermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo). Đây là extentions để giúp ta có thể nhúng các script tự viết vào web site
+- Cài đặt [CSP](https://chrome.google.com/webstore/detail/disable-content-security/ieelmcmcagommplceebfedjlakkhpden). Việc nhúng script vào web site sau đó gửi thông tin đến server của mình tại local bị chrome block nên cần cài extentions này để block CSP của Chrome.
+- Cài đặt yarn hoặc npm tuỳ vào sở thích, sau đó chạy `yarn` hoặc `npm install` để cài package
+- Thêm script của tampermonkey từ file `.tampermonkey-script.js`
+- Chạy server bằng câu lệnh `yarn start` hoặc `npm start`
+- Mở web site [chat gpt](https://chat.openai.com/) nhớ bật 2 extentions vừa cài đặt bên trên sau đó nếu xuất hiện dòng API connected! như ảnh `.success.png` là được.
+- Có thể test thử bằng cách gửi http POST request bằng postman tới địa chỉ như bên dưới để test câu trả lời.
 
-![ChatGPT API Image](./demo.gif)
+http://localhost:8766/v1/chat/completions
 
-## Usage
-
-### Step 1 Installation and Configuration
-
-1. Make sure your system has installed Node.js and npm.
-2. Clone this repository and run `npm install` in the project directory to install dependencies.
-3. Run `npm run start` to start the Node.js server.
-4. Alternatively, you can use Docker `docker-compose up` to start the Node.js server.
-
-### Step 2 Use Tampermonkey
-
-1. Install [Tampermonkey](https://www.tampermonkey.net/) browser extension.
-2. Open Tampermonkey management panel and create a new script.
-3. Copy the contents of `tampermonkey-script.js` file into the newly created script and save it.
-
-### Step 3 Open and Log in to ChatGPT
-
-[https://chat.openai.com/](https://chat.openai.com/)
-
-If you see this in the upper right corner of the webpage, you have succeeded !
-
-![Success Image](./success.png)
-
-### Step 4 Use API
-
-You now have an API address: http://localhost:8766/v1/chat/completions
-
-
-#### API Params
-| Parameter   | Description                                      | Default | Required |
-|-------------|--------------------------------------------------|---------|----------|
-| messages    | Refer to OpenAI API documentation                |      | Yes      |
-| model       | Refer to OpenAI API documentation                |      | No       |
-| stream      | Refer to OpenAI API documentation                | false   | No       |
-| newChat     | Whether to start a new conversation              | true    | No       |
-
-#### Example of Request Parameters
 ```json
 {
-  "messages": [
-    {
-      "role": "system",
-      "content": "You are a helpful assistant."
-    },
-    {
-      "role": "user",
-      "content": "Who are you?"
-    }
-  ],
-  "model": "gpt-4"
+  "messages": "Tôi có câu hỏi: Tôi có đẹp trai không? Vui lòng trả lời theo mẫu: Tôi đẹp trai hay không: Đẹp trai thì có gì sai: Đẹp trai có kiếm được tiền không:",
+  "model": "gpt-3.5"
 }
-
 ```
-## Play with Auto-GPT
 
-Modify the llm_utils.py file in Auto-GPT.
-```python
-import requests
-# response = openai.ChatCompletion.create(
-#     model=model,
-#     messages=messages,
-#     temperature=temperature,
-#     max_tokens=max_tokens,
-# )
-response = requests.post("http://localhost:8766/v1/chat/completions", json={"messages": messages, "model": model, "newChat": False, "temperature": temperature, "max_tokens": max_tokens}).json()
+Tuỳ vào câu trả lời mà chat gpt sẽ trả về phần div wrap câu hỏi khác nhau, phần này cần kiểm tra kĩ sau đó sửa phần PLEASE CHECK HERE ở file `.tampermonkey-script.js` để lấy được đúng data. Tham khảo ảnh `chat-gpt-answer.png` để biết cách lấy class name đúng.
 
+## Chạy crawl câu hỏi
 
-# return response.choices[0].message["content"]
-return response["choices"][0]["message"]["content"]
-```
+Trong file `.crawl-data-sempai.js` sẽ có 2 function chính `getData()` là function chạy cronjob duyệt qua data sau đó gửi request sang server đã kết nối với chat gpt. Còn lại function `dataToCSV()` dành để xử lý dữ liệu. Phần này mọi người có thể sửa tuỳ thích sao cho hợp lý đúng theo phần mong muốn.
+
+- Copy file câu hỏi vào folder chính, nhớ copy file csv, đổi tên tuỳ thích nhưng nhớ đổi tên trùng với phần ``QUESTION_FILENAME`
+- Chạy cronjob bằng lệnh `node crawl-data-sempai.js`. Sau khi lấy data xong có thể comment functions `getData()` sau đó chạy tiếp function `dataToCSV()`
